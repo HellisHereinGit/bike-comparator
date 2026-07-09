@@ -25,8 +25,8 @@
 // reales. Con esta URL de "latest/download", Tampermonkey siempre comprueba
 // contra la última release publicada, sin que haya que tocar esta línea.
 // -----------------------------------------------------------------------
-// @updateURL https://github.com/<TU-USUARIO-GITHUB>/<TU-REPO>/releases/latest/download/bike-comparator.user.js
-// @downloadURL https://github.com/<TU-USUARIO-GITHUB>/<TU-REPO>/releases/latest/download/bike-comparator.user.js
+// @updateURL https://github.com/HellisHereinGit/bike-comparator/releases/latest/download/bike-comparator.user.js
+// @downloadURL https://github.com/HellisHereinGit/bike-comparator/releases/latest/download/bike-comparator.user.js
 // @require https://cdn.jsdelivr.net/npm/jspdf@2/dist/jspdf.umd.min.js
 // @require https://cdn.jsdelivr.net/npm/jspdf-autotable@3/dist/jspdf.plugin.autotable.min.js
 // @require https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js
