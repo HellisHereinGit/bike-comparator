@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Comparador de Bicicletas (Vadebicis)
 // @namespace https://vadebicis.local/bike-comparator
-// @version 1.0.0
+// @version 1.1.0
 // @description Selecciona hasta 4 bicicletas navegando por trekbikes.com (u otras marcas soportadas) y genera una ficha comparativa en PDF/Word: foto y especificaciones de cada modelo en columnas paralelas, con una única sección de garantías al final. Proyecto independiente del extractor de fichas individuales (bike-spec-extractor.user.js); no lo sustituye ni lo modifica.
 // @author Vadebicis
 // @match https://www.trekbikes.com/*
@@ -25,8 +25,8 @@
 // reales. Con esta URL de "latest/download", Tampermonkey siempre comprueba
 // contra la última release publicada, sin que haya que tocar esta línea.
 // -----------------------------------------------------------------------
-// @updateURL https://github.com/HellisHereinGit/bike-comparator/releases/latest/download/bike-comparator.user.js
-// @downloadURL https://github.com/HellisHereinGit/bike-comparator/releases/latest/download/bike-comparator.user.js
+// @updateURL https://github.com/<TU-USUARIO-GITHUB>/<TU-REPO>/releases/latest/download/bike-comparator.user.js
+// @downloadURL https://github.com/<TU-USUARIO-GITHUB>/<TU-REPO>/releases/latest/download/bike-comparator.user.js
 // @require https://cdn.jsdelivr.net/npm/jspdf@2/dist/jspdf.umd.min.js
 // @require https://cdn.jsdelivr.net/npm/jspdf-autotable@3/dist/jspdf.plugin.autotable.min.js
 // @require https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js
@@ -123,7 +123,8 @@ display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px
 .bcb-bike-row .bcb-bike-info { flex: 1; }
 .bcb-bike-row .bcb-bike-name { font-weight: 600; }
 .bcb-bike-row .bcb-bike-meta { color: #777; font-size: 12px; }
-.bcb-bike-row button { border: none; background: #fbe3e3; color: #b0281f; border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 12px; }
+.bcb-bike-row button { border: none; background: #fbe3e3; color: #b0281f; border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 12px; margin-left: 6px; }
+.bcb-bike-row button.bcb-btn-photos-mini { background: #e1f0e6; color: #1a7f4b; }
 .bcb-empty { color: #888; font-size: 13px; padding: 10px 0; }
 .bcb-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 .bcb-actions button { flex: 1 1 140px; padding: 11px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 13.5px; }
@@ -879,6 +880,30 @@ function escapeHtml(str) {
 return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// --------------------------------------------------------------------------
+// 3b. DESCARGA DE FOTOS DE GALERÍA A DISCO (nombradas por SKU)
+// Guarda cada foto de la galería como archivo .jpg individual, con el SKU
+// de la bici como nombre base: SKU.jpg, SKU_1.jpg, SKU_2.jpg...
+// --------------------------------------------------------------------------
+
+async function downloadGalleryPhotos(data) {
+const urls = (data.images || []).map((im) => im.url);
+if (!urls.length) throw new Error('No se han detectado fotos en esta página.');
+const base = data.sku ? String(data.sku).replace(/[^\w\-]+/g, '_') : bikeShortNameForFile(data);
+const assets = await processImagesSafely(urls, 1600);
+for (let i = 0; i < assets.length; i++) {
+const blob = await (await fetch(assets[i].dataUrl)).blob();
+const filename = i === 0 ? `${base}.jpg` : `${base}_${i}.jpg`;
+triggerDownload(blob, filename);
+await wait(350);
+}
+return assets.length;
+}
+
+function bikeShortNameForFile(data) {
+return `${data.brand || 'bici'}-${data.model || 'foto'}`.replace(/[^\w\-]+/g, '_').slice(0, 60);
+}
+
 async function getLogoDataUrl() {
 const cached = GM_getValue(LOGO_CACHE_KEY, null);
 if (cached) return cached;
@@ -1409,6 +1434,7 @@ return `<div class="bcb-bike-row">
 <div class="bcb-bike-name">${escapeHtml(bikeShortName(bike))}</div>
 <div class="bcb-bike-meta">${bike.data.sku ? 'SKU ' + escapeHtml(bike.data.sku) + ' · ' : ''}Descuento ${bike.discountPct || 0}% ${finalPrice != null ? '· ' + escapeHtml(formatEUR(finalPrice)) : ''}</div>
 </div>
+<button class="bcb-btn-photos-mini" data-bcb-photos="${i}">💾 Fotos</button>
 <button data-bcb-remove="${i}">Quitar</button>
 </div>`;
 })
@@ -1455,6 +1481,28 @@ s.bikes.splice(idx, 1);
 saveState(s);
 renderBadge();
 openPanel();
+});
+});
+
+mount.querySelectorAll('[data-bcb-photos]').forEach((btn) => {
+btn.addEventListener('click', async () => {
+const idx = Number(btn.getAttribute('data-bcb-photos'));
+const s = loadState();
+const bike = s.bikes[idx];
+if (!bike) return;
+const originalText = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳';
+try {
+const count = await downloadGalleryPhotos(bike.data);
+alert(`${count} foto(s) descargada(s) para ${bikeShortName(bike)}. Si el navegador bloquea alguna descarga, permite "descargas múltiples" para este sitio y vuelve a intentarlo.`);
+} catch (e) {
+console.error(e);
+alert('No se pudieron descargar las fotos: ' + e.message);
+} finally {
+btn.disabled = false;
+btn.textContent = originalText;
+}
 });
 });
 
