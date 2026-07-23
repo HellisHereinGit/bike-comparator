@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Comparador de Bicicletas (Vadebicis)
 // @namespace https://vadebicis.local/bike-comparator
-// @version 1.1.0
+// @version 1.1.1
 // @description Selecciona hasta 4 bicicletas navegando por trekbikes.com (u otras marcas soportadas) y genera una ficha comparativa en PDF/Word: foto y especificaciones de cada modelo en columnas paralelas, con una única sección de garantías al final. Proyecto independiente del extractor de fichas individuales (bike-spec-extractor.user.js); no lo sustituye ni lo modifica.
 // @author Vadebicis
 // @match https://www.trekbikes.com/*
@@ -887,7 +887,7 @@ return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;'
 // --------------------------------------------------------------------------
 
 async function downloadGalleryPhotos(data) {
-const urls = (data.images || []).map((im) => im.url);
+const urls = (data.images || []).slice(0, 6).map((im) => im.url);
 if (!urls.length) throw new Error('No se han detectado fotos en esta página.');
 const base = data.sku ? String(data.sku).replace(/[^\w\-]+/g, '_') : bikeShortNameForFile(data);
 const assets = await processImagesSafely(urls, 1600);
